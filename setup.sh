@@ -88,7 +88,8 @@ mkdir -p "$INSTALL_DIR"
 
 # ----- Descargar build pre-compilado -----
 GITHUB_REPO="dev-sanrafael/opencode-node"
-RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/latest/download"
+BUILD_BRANCH="build-assets"
+BUILD_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${BUILD_BRANCH}/build"
 
 echo -e "${YELLOW}[*] Descargando build de OpenCode...${NC}"
 
@@ -100,18 +101,13 @@ BUILD_FILES=("node.js" "node.js.map" "photon_rs_bg-bq08arze.wasm" "tree-sitter-3
 mkdir -p build
 for file in "${BUILD_FILES[@]}"; do
     echo -e "    Descargando ${file}..."
-    curl -fSL -o "build/${file}" "${RELEASE_URL}/${file}" 2>/dev/null || {
+    curl -fSL -o "build/${file}" "${BUILD_URL}/${file}" 2>/dev/null || {
         echo -e "${RED}[✗] Error descargando ${file}${NC}"
-        echo -e "${YELLOW}    Intentando URL alternativa...${NC}"
-        # Intentar con el tag de version
-        curl -fSL -o "build/${file}" "https://github.com/${GITHUB_REPO}/releases/download/v1.0.0/${file}" 2>/dev/null || {
-            echo -e "${RED}[✗] No se pudo descargar ${file}${NC}"
-            echo -e "${YELLOW}    Puedes construir el build manualmente en una PC:${NC}"
-            echo -e "    git clone https://github.com/anomalyco/opencode && cd opencode"
-            echo -e "    bun install && cd packages/opencode && bun script/build-node.ts"
-            echo -e "    Copia dist/node/* a ~/.opencode-termux/build/"
-            exit 1
-        }
+        echo -e "${YELLOW}    Puedes construir el build manualmente en una PC:${NC}"
+        echo -e "    git clone https://github.com/anomalyco/opencode && cd opencode"
+        echo -e "    bun install && cd packages/opencode && bun script/build-node.ts"
+        echo -e "    Copia dist/node/* a ~/.opencode-termux/build/"
+        exit 1
     }
 done
 
