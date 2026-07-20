@@ -1,0 +1,25 @@
+{
+  "name": "opencode-termux",
+  "version": "1.0.0",
+  "description": "AI Coding Assistant para Termux en Android (ARM 32/64-bit)",
+  "main": "opencode-termux.js",
+  "type": "module",
+  "bin": {
+    "opencode-termux": "./opencode-termux.js"
+  },
+  "scripts": {
+    "start": "node opencode-termux.js",
+    "setup": "node setup-config.js"
+  },
+  "keywords": ["opencode", "termux", "android", "ai", "coding", "assistant"],
+  "author": "dev-sanrafael",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "openai": "^4.73.0",
+    "chalk": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
