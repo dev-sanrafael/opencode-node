@@ -1,7 +1,8 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ============================================================
-#  OpenCode Termux - Script de instalacion
-#  Para dispositivos Android con Termux (ARM 32/64-bit)
+#  OpenCode Termux - Instalador completo
+#  OpenCode nativo en Termux via Node.js
+#  Compatible: ARM 32-bit (armv7l) y 64-bit (aarch64)
 # ============================================================
 
 set -e
@@ -14,218 +15,306 @@ NC='\033[0m'
 
 echo -e "${CYAN}"
 echo "  ╔══════════════════════════════════════════╗"
-echo "  ║       OpenCode Termux Installer          ║"
-echo "  ║   AI Coding Assistant para Android       ║"
+echo "  ║     OpenCode Termux - Instalador        ║"
+echo "  ║   AI Coding Assistant para Android      ║"
 echo "  ╚══════════════════════════════════════════╝"
 echo -e "${NC}"
 
 # ----- Verificar arquitectura -----
 ARCH=$(uname -m)
-echo -e "${YELLOW}[*] Arquitectura detectada: ${ARCH}${NC}"
+echo -e "${YELLOW}[*] Arquitectura: ${ARCH}${NC}"
+
+if [ "$ARCH" = "armv7l" ] || [ "$ARCH" = "armv8l" ]; then
+    echo -e "${YELLOW}[*] Detectado ARM 32-bit. Usando nodejs-lts.${NC}"
+    NODE_PKG="nodejs-lts"
+else
+    NODE_PKG="nodejs"
+fi
 
 # ----- Actualizar paquetes -----
 echo -e "${YELLOW}[*] Actualizando repositorios...${NC}"
-pkg update -y
+pkg update -y -o Dpkg::Options::="--force-confnew"
 
 # ----- Instalar dependencias del sistema -----
-echo -e "${YELLOW}[*] Instalando paquetes del sistema...${NC}"
-pkg install -y nodejs-lts git curl which termux-api
+echo -e "${YELLOW}[*] Instalando paquetes...${NC}"
+pkg install -y $NODE_PKG git curl wget which termux-api
 
 # Verificar Node.js
-if command -v node &> /dev/null; then
-    NODE_VERSION=$(node -v)
-    echo -e "${GREEN}[✓] Node.js instalado: ${NODE_VERSION}${NC}"
-else
+if ! command -v node &> /dev/null; then
     echo -e "${RED}[✗] Error: No se pudo instalar Node.js${NC}"
-    echo -e "${YELLOW}    Intentando con nodejs (latest)...${NC}"
-    pkg install -y nodejs
-    if command -v node &> /dev/null; then
-        echo -e "${GREEN}[✓] Node.js instalado: $(node -v)${NC}"
-    else
-        echo -e "${RED}[✗] Fallo la instalacion de Node.js. Abortando.${NC}"
-        exit 1
-    fi
+    exit 1
 fi
+
+NODE_VERSION=$(node -v)
+echo -e "${GREEN}[✓] Node.js: ${NODE_VERSION}${NC}"
 
 # Verificar npm
 if ! command -v npm &> /dev/null; then
-    echo -e "${YELLOW}[*] Instalando npm...${NC}"
     pkg install -y npm
 fi
 
-# ----- Configurar acceso a almacenamiento -----
+# ----- Configurar almacenamiento -----
 echo -e "${YELLOW}[*] Configurando acceso al almacenamiento...${NC}"
 if [ ! -d "$HOME/storage" ]; then
     termux-setup-storage
-    echo -e "${YELLOW}    Se abrira un dialogo de permisos. Acepta para continuar.${NC}"
-    echo -e "${YELLOW}    Presiona ENTER cuando hayas aceptado los permisos...${NC}"
+    echo -e "${YELLOW}    Acepta los permisos de almacenamiento y presiona ENTER...${NC}"
     read -r
 fi
 
 # ----- Configurar teclas extra de Termux -----
 echo -e "${YELLOW}[*] Configurando barra de teclas extra...${NC}"
-TERMUX_PROPS="$HOME/.termux/termux.properties"
 mkdir -p "$HOME/.termux"
 
-cat > "$TERMUX_PROPS" << 'EOF'
+cat > "$HOME/.termux/termux.properties" << 'EOF'
 # OpenCode Termux - Configuracion de teclas extra
-# Reinicia Termux o ejecuta "termux-reload-settings" para aplicar
-
-# Barra de teclas extra (fila adicional sobre el teclado)
 extra-keys = [ \
   ['ESC','/','-','$','>','|','UP','DEL'], \
   ['TAB','CTRL','ALT','.','*','LEFT','DOWN','RIGHT'] \
 ]
-
-# Estilo
 extra-keys-style = always
 terminal-cursor-style = bar
 use-black-ui = true
-
-# Comportamiento
 bell-character = ignore
-terminal-margin-horizontal = 2
-terminal-margin-vertical = 2
 enforce-char-based-input = true
-
-# Ctrl+Space sending (para algunos atajos)
 ctrl-space-workaround = true
 EOF
 
+termux-reload-settings 2>/dev/null || true
 echo -e "${GREEN}[✓] Teclas extra configuradas${NC}"
 
-# ----- Configurar directorio del proyecto -----
+# ----- Directorio de instalacion -----
 INSTALL_DIR="$HOME/.opencode-termux"
 mkdir -p "$INSTALL_DIR"
 
-# ----- Crear package.json local -----
-echo -e "${YELLOW}[*] Creando configuracion del proyecto...${NC}"
-cat > "$INSTALL_DIR/package.json" << 'JSONEOF'
+# ----- Descargar build pre-compilado -----
+GITHUB_REPO="dev-sanrafael/opencode-termux"
+RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/latest/download"
+
+echo -e "${YELLOW}[*] Descargando build de OpenCode...${NC}"
+
+cd "$INSTALL_DIR"
+
+# Descargar archivos del build
+BUILD_FILES=("node.js" "node.js.map" "photon_rs_bg-bq08arze.wasm" "tree-sitter-3jzf13jk.wasm" "tree-sitter-bash-hq5s6fxb.wasm" "tree-sitter-powershell-ryb2ffqs.wasm")
+
+mkdir -p build
+for file in "${BUILD_FILES[@]}"; do
+    echo -e "    Descargando ${file}..."
+    curl -fSL -o "build/${file}" "${RELEASE_URL}/${file}" 2>/dev/null || {
+        echo -e "${RED}[✗] Error descargando ${file}${NC}"
+        echo -e "${YELLOW}    Intentando URL alternativa...${NC}"
+        # Intentar con el tag de version
+        curl -fSL -o "build/${file}" "https://github.com/${GITHUB_REPO}/releases/download/v1.0.0/${file}" 2>/dev/null || {
+            echo -e "${RED}[✗] No se pudo descargar ${file}${NC}"
+            echo -e "${YELLOW}    Puedes construir el build manualmente en una PC:${NC}"
+            echo -e "    git clone https://github.com/anomalyco/opencode && cd opencode"
+            echo -e "    bun install && cd packages/opencode && bun script/build-node.ts"
+            echo -e "    Copia dist/node/* a ~/.opencode-termux/build/"
+            exit 1
+        }
+    }
+done
+
+echo -e "${GREEN}[✓] Build descargado${NC}"
+
+# ----- Instalar dependencias npm -----
+echo -e "${YELLOW}[*] Instalando dependencias Node.js...${NC}"
+echo -e "${YELLOW}    (Compilando modulos nativos para ${ARCH} - esto puede tardar)${NC}"
+
+# Crear package.json para deps runtime
+cat > "$INSTALL_DIR/package.json" << JSONEOF
 {
-  "name": "opencode-termux",
-  "version": "1.0.0",
-  "description": "AI Coding Assistant para Termux en Android",
-  "main": "opencode-termux.js",
+  "name": "opencode-termux-runtime",
   "type": "module",
-  "scripts": {
-    "start": "node opencode-termux.js",
-    "setup": "node setup-config.js"
-  },
+  "private": true,
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
-    "openai": "^4.73.0",
-    "chalk": "^5.3.0"
+    "@lydell/node-pty": "1.2.0-beta.12",
+    "jsonc-parser": "^3.3.0",
+    "better-sqlite3": "^11.0.0"
   }
 }
 JSONEOF
 
-# ----- Instalar dependencias npm -----
-echo -e "${YELLOW}[*] Instalando dependencias Node.js (esto puede tardar)...${NC}"
 cd "$INSTALL_DIR"
-npm install --no-audit --no-fund 2>&1 | tail -5
+npm install --no-audit --no-fund 2>&1 | tail -10
 
 echo -e "${GREEN}[✓] Dependencias instaladas${NC}"
 
-# ----- Crear script de configuracion de API key -----
-cat > "$INSTALL_DIR/setup-config.js" << 'JSEOF'
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { homedir } from 'os';
-import { join } from 'path';
-import { createInterface } from 'readline';
+# ----- Configurar scripts principales -----
+echo -e "${YELLOW}[*] Configurando scripts...${NC}"
 
-const configDir = join(homedir(), '.opencode-termux');
-const configFile = join(configDir, 'config.json');
+# Descargar opencode-server.js y opencode-cli.js del repo
+SCRIPT_BASE="https://raw.githubusercontent.com/${GITHUB_REPO}/main"
+curl -fSL -o "$INSTALL_DIR/opencode-server.js" "${SCRIPT_BASE}/opencode-server.js" 2>/dev/null
+curl -fSL -o "$INSTALL_DIR/opencode-cli.js" "${SCRIPT_BASE}/opencode-cli.js" 2>/dev/null
 
-const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout
+# Si falla, crear versiones minimas
+if [ ! -s "$INSTALL_DIR/opencode-server.js" ]; then
+    cat > "$INSTALL_DIR/opencode-server.js" << 'SRVEOF'
+#!/usr/bin/env node
+import { Server } from "./build/node.js";
+const port = parseInt(process.argv[3] || "4096", 10);
+const hostname = process.argv[5] || "127.0.0.1";
+console.log("OpenCode Server iniciando en " + hostname + ":" + port + "...");
+const listener = await Server.listen({ port, hostname, mdns: false });
+console.log("Servidor listo: http://" + listener.hostname + ":" + listener.port);
+process.on("SIGINT", async () => { await listener.stop(); process.exit(0); });
+SRVEOF
+fi
+
+if [ ! -s "$INSTALL_DIR/opencode-cli.js" ]; then
+    cat > "$INSTALL_DIR/opencode-cli.js" << 'CLIEOF'
+#!/usr/bin/env node
+import { createInterface } from "readline";
+const SERVER = process.env.OPENCODE_URL || "http://127.0.0.1:4096";
+const PWD = process.env.OPENCODE_SERVER_PASSWORD || "";
+const c = { dim: "\x1b[2m", green: "\x1b[32m", cyan: "\x1b[36m", reset: "\x1b[0m", bold: "\x1b[1m" };
+
+async function api(path, body) {
+  const h = { "Content-Type": "application/json", "x-opencode-directory": process.cwd() };
+  if (PWD) h.Authorization = "Bearer " + PWD;
+  const r = await fetch(SERVER + "/api/" + path, { method: body ? "POST" : "GET", headers: h, body: body ? JSON.stringify(body) : undefined });
+  const t = await r.text();
+  if (!r.ok) throw new Error(t.substring(0, 200));
+  return t ? JSON.parse(t) : null;
+}
+
+async function* stream(path, body) {
+  const h = { "Content-Type": "application/json", "x-opencode-directory": process.cwd() };
+  if (PWD) h.Authorization = "Bearer " + PWD;
+  const r = await fetch(SERVER + "/api/" + path, { method: "POST", headers: h, body: JSON.stringify(body) });
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop() || "";
+    for (const l of lines) {
+      if (l.startsWith("data: ")) { try { yield JSON.parse(l.slice(6)); } catch {} }
+    }
+  }
+}
+
+let session = null;
+const rl = createInterface({ input: process.stdin, output: process.stdout });
+console.log(c.bold + "OpenCode CLI" + c.reset + c.dim + " v1.0.0" + c.reset);
+console.log(c.dim + "Servidor: " + SERVER + c.reset);
+console.log(c.dim + "/help para ayuda, escribe tu prompt" + c.reset + "\n");
+
+rl.on("line", async (line) => {
+  const t = line.trim();
+  if (!t) { rl.prompt(); return; }
+  if (t.startsWith("/exit")) { rl.close(); process.exit(0); }
+  if (t.startsWith("/help")) {
+    console.log("\n" + c.bold + "Comandos:" + c.reset);
+    console.log("  " + c.cyan + "/new" + c.reset + "     Crear sesion");
+    console.log("  " + c.cyan + "/file <r>" + c.reset + " Leer archivo");
+    console.log("  " + c.cyan + "/help" + c.reset + "    Ayuda");
+    console.log("  " + c.cyan + "/exit" + c.reset + "    Salir\n");
+    rl.prompt(); return;
+  }
+  if (t === "/new") {
+    try {
+      const r = await api("session", { title: "Termux" });
+      session = r.id;
+      console.log(c.green + "[✓] Sesion: " + c.cyan + session + c.reset + "\n");
+    } catch(e) { console.log(c.red + "Error: " + e.message + c.reset); }
+    rl.prompt(); return;
+  }
+  if (!session) {
+    try {
+      const r = await api("session", { title: "Termux" });
+      session = r.id;
+    } catch(e) { console.log(c.red + "Error: servidor no disponible" + c.reset); rl.prompt(); return; }
+  }
+  try {
+    const s = stream("session/" + session + "/prompt", { messages: [{ role: "user", content: t }] });
+    console.log(c.dim + "---" + c.reset);
+    let out = "";
+    for await (const e of s) {
+      const txt = e.content || e.text || e.delta || "";
+      if (txt && txt !== out) { process.stdout.write(txt); out = txt; }
+    }
+    console.log(c.dim + "\n---" + c.reset + "\n");
+  } catch(e) { console.log(c.red + "Error: " + e.message + c.reset); }
+  rl.prompt();
 });
 
-function ask(question) {
-    return new Promise(resolve => rl.question(question, resolve));
-}
+rl.prompt();
+CLIEOF
+fi
 
-async function setup() {
-    console.log('\n📋 Configuracion de API Key');
-    console.log('═══════════════════════════\n');
+chmod +x "$INSTALL_DIR"/opencode-server.js "$INSTALL_DIR"/opencode-cli.js
 
-    let config = {};
-    if (existsSync(configFile)) {
-        try {
-            config = JSON.parse(readFileSync(configFile, 'utf-8'));
-            console.log('(Se encontro configuracion existente)');
-        } catch {}
-    }
-
-    // Proveedor
-    console.log('Proveedores disponibles:');
-    console.log('  1. Anthropic (Claude) - Recomendado');
-    console.log('  2. OpenAI (GPT)\n');
-
-    const providerChoice = await ask('Elige proveedor [1/2] (default: 1): ');
-    if (providerChoice === '2') {
-        config.provider = 'openai';
-        console.log('\nConsigue tu API key en: https://platform.openai.com/api-keys');
-        config.apiKey = await ask('OpenAI API Key: ');
-        const modelChoice = await ask('Modelo [gpt-4o/gpt-4o-mini/o3-mini] (default: gpt-4o): ');
-        config.model = modelChoice || 'gpt-4o';
-    } else {
-        config.provider = 'anthropic';
-        console.log('\nConsigue tu API key en: https://console.anthropic.com/settings/keys');
-        config.apiKey = await ask('Anthropic API Key: ');
-        const modelChoice = await ask('Modelo [claude-sonnet-4-20250514/claude-3-5-haiku-20241022] (default: claude-sonnet-4-20250514): ');
-        config.model = modelChoice || 'claude-sonnet-4-20250514';
-    }
-
-    if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
-    writeFileSync(configFile, JSON.stringify(config, null, 2));
-    console.log(`\n✅ Configuracion guardada en: ${configFile}\n`);
-    rl.close();
-}
-
-setup();
-JSEOF
-
-# ----- Crear enlace simbolico -----
-echo -e "${YELLOW}[*] Creando comando global...${NC}"
+# ----- Crear comandos globales -----
 BIN_DIR="$HOME/bin"
 mkdir -p "$BIN_DIR"
 
-cat > "$BIN_DIR/opencode-termux" << 'SHEOF'
+cat > "$BIN_DIR/opencode-server" << 'SHEOF'
 #!/data/data/com.termux/files/usr/bin/bash
-INSTALL_DIR="$HOME/.opencode-termux"
-cd "$INSTALL_DIR"
-exec node opencode-termux.js "$@"
+exec node "$HOME/.opencode-termux/opencode-server.js" "$@"
 SHEOF
 
-chmod +x "$BIN_DIR/opencode-termux"
+cat > "$BIN_DIR/opencode-cli" << 'SHEOF'
+#!/data/data/com.termux/files/usr/bin/bash
+exec node "$HOME/.opencode-termux/opencode-cli.js" "$@"
+SHEOF
 
-# Agregar al PATH si no esta
+cat > "$BIN_DIR/opencode" << 'SHEOF'
+#!/data/data/com.termux/files/usr/bin/bash
+# Inicia servidor en background y cliente en foreground
+OPENCODE_DIR="$HOME/.opencode-termux"
+
+# Si el servidor ya esta corriendo, solo abre el cliente
+if curl -sf http://127.0.0.1:4096/api/session > /dev/null 2>&1; then
+    exec node "$OPENCODE_DIR/opencode-cli.js" "$@"
+fi
+
+# Iniciar servidor
+echo "Iniciando OpenCode Server..."
+node "$OPENCODE_DIR/opencode-server.js" &
+SERVER_PID=$!
+sleep 2
+
+# Iniciar cliente
+node "$OPENCODE_DIR/opencode-cli.js" "$@"
+
+# Al salir, matar el servidor
+kill $SERVER_PID 2>/dev/null
+SHEOF
+
+chmod +x "$BIN_DIR"/opencode-server "$BIN_DIR"/opencode-cli "$BIN_DIR"/opencode
+
+# Agregar al PATH
 if ! grep -q "export PATH=\"\$HOME/bin:\$PATH\"" "$HOME/.bashrc" 2>/dev/null; then
     echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
 fi
 
-# ----- Aplicar config de teclas -----
-echo -e "${YELLOW}[*] Recargando configuracion de Termux...${NC}"
-termux-reload-settings 2>/dev/null || true
-
 # ----- Resumen -----
 echo ""
 echo -e "${GREEN}╔════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║      Instalacion completada con exito      ║${NC}"
+echo -e "${GREEN}║    OpenCode Termux - Instalacion completa  ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  ${CYAN}Siguiente paso:${NC}"
-echo -e "    1. Ejecuta:  ${YELLOW}opencode-termux --setup${NC}"
-echo -e "       (o: ${YELLOW}node ~/.opencode-termux/setup-config.js${NC})"
-echo -e "    2. Ingresa tu API key de Anthropic/OpenAI"
-echo -e "    3. Ejecuta:  ${YELLOW}opencode-termux${NC}"
+echo -e "  ${CYAN}Comandos disponibles:${NC}"
+echo -e "    ${YELLOW}opencode-server${NC}   Iniciar servidor OpenCode"
+echo -e "    ${YELLOW}opencode-cli${NC}       Conectar al servidor"
+echo -e "    ${YELLOW}opencode${NC}           Servidor + Cliente en uno"
 echo ""
-echo -e "  ${CYAN}Comandos utiles:${NC}"
-echo -e "    ${YELLOW}opencode-termux${NC}          Iniciar asistente"
-echo -e "    ${YELLOW}opencode-termux --setup${NC}   Reconfigurar API key"
-echo -e "    ${YELLOW}opencode-termux --help${NC}    Mostrar ayuda"
+echo -e "  ${CYAN}Primer uso:${NC}"
+echo -e "    1. Configura tu API key:"
+echo -e "       ${YELLOW}export ANTHROPIC_API_KEY=\"sk-ant-...\"${NC}"
+echo -e "    2. Configura password del servidor:"
+echo -e "       ${YELLOW}export OPENCODE_SERVER_PASSWORD=\"tupassword\"${NC}"
+echo -e "    3. Inicia:"
+echo -e "       ${YELLOW}opencode${NC}"
 echo ""
-echo -e "  ${CYAN}Nota:${NC} Si es la primera vez, cierra Termux y"
-echo -e "  vuelve a abrirlo para que se apliquen las teclas extra."
+echo -e "  ${CYAN}Nota:${NC} Agrega los exports a tu ~/.bashrc para que"
+echo -e "  persistan entre sesiones."
+echo ""
+echo -e "  ${CYAN}Si las teclas extra no aparecen:${NC}"
+echo -e "    Cierra Termux y vuelve a abrirlo."
 echo ""

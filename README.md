@@ -1,136 +1,159 @@
 # OpenCode Termux
 
-**AI Coding Assistant para Android con Termux**
+**OpenCode nativo en Android via Termux**
 
-Ejecuta un asistente de programacion con IA (Claude o GPT) directamente en tu celular Android, compatible con arquitecturas **ARM 32-bit (armv7l)** y 64-bit (aarch64).
+Ejecuta el servidor oficial de OpenCode (anomalyco/opencode) en tu celular Android usando Node.js. Compatible con arquitecturas **ARM 32-bit (armv7l)** y 64-bit (aarch64).
 
-## ¿Por que existe?
+> A diferencia de otras soluciones que simulan OpenCode, este proyecto ejecuta el **código real de OpenCode** compilado para Node.js. El servidor headless se comunica con los mismos modelos de IA (Claude, GPT) y expone la misma API REST.
 
-El binario oficial de OpenCode requiere **Bun**, que no tiene soporte para ARM de 32 bits. Este proyecto usa **Node.js** (disponible en Termux para armv7l) para conectarse directamente a las APIs de Anthropic y OpenAI, brindando una experiencia similar optimizada para pantalla tactil y teclado Android.
+## ¿Cómo funciona?
 
-## Instalacion (en Termux)
-
-### 1. Actualizar Termux y clonar el repo
-
-```bash
-pkg update -y
-pkg install -y git
-git clone https://github.com/dev-sanrafael/opencode-termux.git
-cd opencode-termux
+```
+┌──────────────────────────────────────┐
+│  Termux (Android)                    │
+│                                      │
+│  ┌──────────────┐   ┌─────────────┐  │
+│  │ opencode-     │   │ opencode-   │  │
+│  │ server.js     │◄──│ cli.js      │  │
+│  │ (Node.js)     │   │ (Terminal)  │  │
+│  │ Puerto 4096   │   │             │  │
+│  └──────┬───────┘   └─────────────┘  │
+│         │                            │
+│    API Anthropic / OpenAI            │
+└─────────┼────────────────────────────┘
+          │
+     ☁️ Internet
 ```
 
-### 2. Ejecutar el instalador
+1. **OpenCode Server**: El servidor oficial de OpenCode compilado para Node.js, ejecutándose en Termux
+2. **Cliente CLI**: Terminal interactiva que se comunica con el servidor via API REST
+3. **Tus API keys**: Anthropic (Claude) u OpenAI (GPT) para la IA
+
+## Instalación rápida
 
 ```bash
+# En Termux:
+curl -fsSL https://raw.githubusercontent.com/dev-sanrafael/opencode-termux/main/setup.sh | bash
+```
+
+## Instalación manual
+
+```bash
+# 1. Clonar el repo
+pkg update -y && pkg install -y git nodejs-lts
+git clone https://github.com/dev-sanrafael/opencode-termux.git
+cd opencode-termux
+
+# 2. Ejecutar instalador
 chmod +x setup.sh
 ./setup.sh
 ```
 
-Esto instalara:
-- Node.js LTS (compatible con 32-bit)
-- Dependencias npm (@anthropic-ai/sdk, openai, chalk)
-- Configuracion de teclas extra en Termux (ESC, TAB, CTRL, flechas, etc.)
-- Comando global `opencode-termux`
-
-### 3. Configurar API key
+## Configuración
 
 ```bash
-opencode-termux --setup
-```
+# Configura tus API keys (agrega a ~/.bashrc para que persistan)
+export ANTHROPIC_API_KEY="sk-ant-api03-..."
+export OPENCODE_SERVER_PASSWORD="tu-password-seguro"
 
-Elegi entre Anthropic (Claude) u OpenAI (GPT) e ingresa tu API key.
-
-### 4. Iniciar
-
-```bash
-opencode-termux
+# O usa OpenAI
+export OPENAI_API_KEY="sk-..."
 ```
 
 ## Uso
 
-### Comandos disponibles
+```bash
+# Iniciar servidor + cliente (todo en uno)
+opencode
 
-| Comando | Descripcion |
+# O por separado:
+# Terminal 1 - Servidor
+opencode-server
+
+# Terminal 2 - Cliente
+opencode-cli
+```
+
+### Comandos del cliente
+
+| Comando | Descripción |
 |---------|-------------|
-| `/file <ruta>` | Leer archivo y agregarlo al contexto |
-| `/files` | Ver archivos en contexto |
-| `/drop <ruta>` | Quitar archivo del contexto |
-| `/dir [ruta]` | Listar directorio |
-| `/write <ruta>` | Guardar ultima respuesta en archivo |
-| `/clear` | Limpiar contexto de conversacion |
-| `/model <nombre>` | Cambiar modelo de IA |
-| `/key` | Cambiar API key |
-| `/save` | Guardar sesion actual |
-| `/load` | Cargar ultima sesion |
-| `/cwd <ruta>` | Cambiar directorio de trabajo |
-| `/history` | Ver historial de mensajes |
+| `/new` | Crear nueva sesión |
+| `/file <ruta>` | Leer archivo |
+| `/sessions` | Listar sesiones |
 | `/help` | Mostrar ayuda |
 | `/exit` | Salir |
+| `texto...` | Enviar prompt a la IA |
 
-### Flujo de trabajo tipico
+## Requisitos
 
+- **Termux** (desde [F-Droid](https://f-droid.org/packages/com.termux/), NO Play Store)
+- **Node.js >= 18** (instalado por setup.sh)
+- **~500 MB** espacio libre
+- **API key** de Anthropic (Claude) u OpenAI
+
+## Compatibilidad
+
+| Arquitectura | Soporte |
+|-------------|---------|
+| ARM 32-bit (armv7l) | ✅ nodejs-lts |
+| ARM 64-bit (aarch64) | ✅ nodejs |
+| x86_64 | ✅ nodejs |
+
+## Construir desde cero
+
+Si prefieres compilar el build tú mismo (requiere PC con Bun):
+
+```bash
+git clone https://github.com/anomalyco/opencode.git
+cd opencode
+bun install
+cd packages/opencode
+bun script/build-node.ts
+# El build estará en dist/node/
 ```
-> /dir src/
-  Mostrando archivos del proyecto...
 
-> /file src/index.js
-  [✓] Archivo agregado al contexto (150 lineas)
+Copia `dist/node/*` a `~/.opencode-termux/build/` en tu dispositivo.
 
-> Explicame como funciona este codigo y sugiere mejoras
-  [Respuesta de la IA...]
+## Variables de entorno
 
-> /write sugerencias.md
-  [✓] Escrito: sugerencias.md
-```
+| Variable | Descripción |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | API key de Anthropic Claude |
+| `OPENAI_API_KEY` | API key de OpenAI |
+| `OPENCODE_SERVER_PASSWORD` | Contraseña del servidor |
+| `OPENCODE_URL` | URL del servidor (default: http://127.0.0.1:4096) |
+| `OPENCODE_CONFIG` | Ruta a archivo de configuración |
 
 ## Teclas extra de Termux
 
-El instalador configura automaticamente una barra de teclas extra:
+El instalador configura automáticamente:
 
 ```
 [ESC] [/] [-] [$] [>] [|] [UP] [DEL]
 [TAB] [CTRL] [ALT] [.] [*] [LEFT] [DOWN] [RIGHT]
 ```
 
-## Requisitos
+## Solución de problemas
 
-- **Termux** (desde F-Droid, NO Play Store)
-- **Node.js >= 18** (instalado por setup.sh)
-- **API key** de Anthropic (Claude) u OpenAI (GPT)
-- **~200 MB** de espacio libre
-
-## Compatibilidad
-
-| Arquitectura | Soporte |
-|-------------|---------|
-| ARM 32-bit (armv7l) | ✅ Completo |
-| ARM 64-bit (aarch64) | ✅ Completo |
-| x86_64 | ✅ Completo |
-
-## Variables de entorno
-
+### "Cannot find package @lydell/node-pty"
 ```bash
-# API key (alternativa al archivo de config)
-export OPENCODE_TERMUX_KEY="sk-ant-..."
+cd ~/.opencode-termux && npm install
 ```
 
-## Solucion de problemas
+### El servidor no inicia
+- Verifica que el puerto 4096 no esté en uso
+- Revisa los logs con `node opencode-server.js` directamente
 
-### "Error al conectar con anthropic/openai"
-- Verifica tu API key: `opencode-termux --setup`
-- Revisa tu conexion a internet
-- Confirma que tu API key tiene creditos disponibles
-
-### "node: command not found"
-- Ejecuta `pkg install nodejs-lts` manualmente
-
-### Las teclas extra no aparecen
-- Cierra Termux completamente y vuelve a abrirlo
-- O ejecuta: `termux-reload-settings`
+### "Error al crear sesión"
+- Confirma que las API keys están configuradas
+- Verifica conexión a internet
 
 ### npm install falla en 32-bit
-- Asegurate de usar `nodejs-lts` (no `nodejs`)
-- Si falla, intenta: `npm install --no-optional`
+- Usa `nodejs-lts` (no `nodejs`):
+  ```bash
+  pkg install nodejs-lts
+  ```
 
 ## Licencia
 
