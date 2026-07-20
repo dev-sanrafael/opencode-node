@@ -9,7 +9,7 @@ OPENCODE_DIR="$HOME/.opencode-termux"
 # Verificar instalacion
 if [ ! -f "$OPENCODE_DIR/build/node.js" ]; then
     echo "❌ OpenCode no esta instalado."
-    echo "   Ejecuta primero: curl -fsSL https://raw.githubusercontent.com/dev-sanrafael/opencode-termux/main/setup.sh | bash"
+    echo "   Ejecuta primero: curl -fsSL https://raw.githubusercontent.com/dev-sanrafael/opencode-node/main/setup.sh | bash"
     exit 1
 fi
 

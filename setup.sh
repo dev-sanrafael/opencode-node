@@ -87,7 +87,7 @@ INSTALL_DIR="$HOME/.opencode-termux"
 mkdir -p "$INSTALL_DIR"
 
 # ----- Descargar build pre-compilado -----
-GITHUB_REPO="dev-sanrafael/opencode-termux"
+GITHUB_REPO="dev-sanrafael/opencode-node"
 RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/latest/download"
 
 echo -e "${YELLOW}[*] Descargando build de OpenCode...${NC}"

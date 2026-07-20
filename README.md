@@ -33,7 +33,7 @@ Ejecuta el servidor oficial de OpenCode (anomalyco/opencode) en tu celular Andro
 
 ```bash
 # En Termux:
-curl -fsSL https://raw.githubusercontent.com/dev-sanrafael/opencode-termux/main/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dev-sanrafael/opencode-node/main/setup.sh | bash
 ```
 
 ## Instalación manual
@@ -41,7 +41,7 @@ curl -fsSL https://raw.githubusercontent.com/dev-sanrafael/opencode-termux/main/
 ```bash
 # 1. Clonar el repo
 pkg update -y && pkg install -y git nodejs-lts
-git clone https://github.com/dev-sanrafael/opencode-termux.git
+git clone https://github.com/dev-sanrafael/opencode-node.git
 cd opencode-termux
 
 # 2. Ejecutar instalador
