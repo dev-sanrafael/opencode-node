@@ -88,20 +88,21 @@ mkdir -p "$INSTALL_DIR"
 
 # ----- Descargar build pre-compilado -----
 GITHUB_REPO="dev-sanrafael/opencode-node"
-BUILD_BRANCH="build-assets"
-BUILD_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${BUILD_BRANCH}/build"
+RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/latest/download"
+FALLBACK_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/build-assets/build"
 
 echo -e "${YELLOW}[*] Descargando build de OpenCode...${NC}"
 
 cd "$INSTALL_DIR"
 
-# Descargar archivos del build
+# Descargar archivos del build (intenta Release primero, fallback a rama)
 BUILD_FILES=("node.js" "node.js.map" "photon_rs_bg-bq08arze.wasm" "tree-sitter-3jzf13jk.wasm" "tree-sitter-bash-hq5s6fxb.wasm" "tree-sitter-powershell-ryb2ffqs.wasm")
 
 mkdir -p build
 for file in "${BUILD_FILES[@]}"; do
     echo -e "    Descargando ${file}..."
-    curl -fSL -o "build/${file}" "${BUILD_URL}/${file}" 2>/dev/null || {
+    curl -fSL -o "build/${file}" "${RELEASE_URL}/${file}" 2>/dev/null || \
+    curl -fSL -o "build/${file}" "${FALLBACK_URL}/${file}" 2>/dev/null || {
         echo -e "${RED}[✗] Error descargando ${file}${NC}"
         echo -e "${YELLOW}    Puedes construir el build manualmente en una PC:${NC}"
         echo -e "    git clone https://github.com/anomalyco/opencode && cd opencode"
