@@ -267,35 +267,43 @@ mkdir -p "$BIN_DIR"
 
 cat > "$BIN_DIR/opencode-server" << 'SHEOF'
 #!/data/data/com.termux/files/usr/bin/bash
-exec node "$HOME/.opencode-termux/opencode-server.js" "$@"
+cd "$HOME/.opencode-termux"
+exec node opencode-server.js "$@"
 SHEOF
 
 cat > "$BIN_DIR/opencode-cli" << 'SHEOF'
 #!/data/data/com.termux/files/usr/bin/bash
-exec node "$HOME/.opencode-termux/opencode-cli.js" "$@"
+cd "$HOME/.opencode-termux"
+exec node opencode-cli.js "$@"
 SHEOF
 
 cat > "$BIN_DIR/opencode" << 'SHEOF'
 #!/data/data/com.termux/files/usr/bin/bash
-# Inicia servidor en background y cliente en foreground
 OPENCODE_DIR="$HOME/.opencode-termux"
+cd "$OPENCODE_DIR"
+
+# Cargar API keys si existe el archivo
+if [ -f "$HOME/.opencode.env" ]; then
+    source "$HOME/.opencode.env"
+fi
 
 # Si el servidor ya esta corriendo, solo abre el cliente
 if curl -sf http://127.0.0.1:4096/api/session > /dev/null 2>&1; then
-    exec node "$OPENCODE_DIR/opencode-cli.js" "$@"
+    exec node opencode-cli.js "$@"
 fi
 
-# Iniciar servidor
+# Iniciar servidor en background
 echo "Iniciando OpenCode Server..."
-node "$OPENCODE_DIR/opencode-server.js" &
+node opencode-server.js &
 SERVER_PID=$!
-sleep 2
+sleep 3
 
 # Iniciar cliente
-node "$OPENCODE_DIR/opencode-cli.js" "$@"
+node opencode-cli.js "$@"
 
-# Al salir, matar el servidor
+# Al salir, detener servidor
 kill $SERVER_PID 2>/dev/null
+wait $SERVER_PID 2>/dev/null
 SHEOF
 
 chmod +x "$BIN_DIR"/opencode-server "$BIN_DIR"/opencode-cli "$BIN_DIR"/opencode
