@@ -118,22 +118,37 @@ echo -e "${GREEN}[✓] Build descargado${NC}"
 echo -e "${YELLOW}[*] Instalando dependencias Node.js...${NC}"
 echo -e "${YELLOW}    (Compilando modulos nativos para ${ARCH} - esto puede tardar)${NC}"
 
-# Crear package.json para deps runtime
+# Instalar solo jsonc-parser (JS puro, el resto son modulos nativos que fallan en Termux)
 cat > "$INSTALL_DIR/package.json" << JSONEOF
 {
   "name": "opencode-termux-runtime",
   "type": "module",
   "private": true,
   "dependencies": {
-    "@lydell/node-pty": "1.2.0-beta.12",
-    "jsonc-parser": "^3.3.0",
-    "better-sqlite3": "^11.0.0"
+    "jsonc-parser": "^3.3.0"
   }
 }
 JSONEOF
 
 cd "$INSTALL_DIR"
 npm install --no-audit --no-fund 2>&1 | tail -10
+
+# Crear stubs para modulos nativos que no compilan en Termux
+mkdir -p "$INSTALL_DIR/node_modules/@lydell/node-pty"
+cat > "$INSTALL_DIR/node_modules/@lydell/node-pty/index.js" << 'PTYEOF'
+export function spawn() { throw new Error("PTY no soportado en Termux"); }
+export default { spawn() { throw new Error("PTY no soportado en Termux"); } }
+PTYEOF
+
+mkdir -p "$INSTALL_DIR/node_modules/better-sqlite3/lib"
+cat > "$INSTALL_DIR/node_modules/better-sqlite3/package.json" << 'SQLITEEOF'
+{"name":"better-sqlite3","version":"0.0.0-stub","type":"commonjs","main":"./lib/index.js"}
+SQLITEEOF
+cat > "$INSTALL_DIR/node_modules/better-sqlite3/lib/index.js" << 'SQLEOF'
+function Database() { throw new Error("better-sqlite3 no soportado en Termux. Se usa storage JSON."); }
+module.exports = Database;
+module.exports.default = Database;
+SQLEOF
 
 echo -e "${GREEN}[✓] Dependencias instaladas${NC}"
 

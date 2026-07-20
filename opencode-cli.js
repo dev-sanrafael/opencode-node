@@ -222,13 +222,15 @@ async function cmdNew() {
     });
 
     let sessionId = "";
+    // La API puede devolver {id:"..."} o {data:{id:"..."}}
     if (result?.id) {
       sessionId = result.id;
+    } else if (result?.data?.id) {
+      sessionId = result.data.id;
     } else if (typeof result === "string") {
-      // Intentar parsear si es un ID
       try {
         const parsed = JSON.parse(result);
-        sessionId = parsed.id || "";
+        sessionId = parsed.id || parsed.data?.id || "";
       } catch {
         sessionId = result;
       }
