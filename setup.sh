@@ -88,8 +88,27 @@ mkdir -p "$INSTALL_DIR"
 
 # ----- Descargar build pre-compilado -----
 GITHUB_REPO="dev-sanrafael/opencode-node"
-RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/latest/download"
+# NOTA DE SEGURIDAD (verificacion de integridad):
+#   Se fija un release EXACTO (tag), no "latest", para que el build descargado
+#   sea reproducible y auditable. Actualizar este tag al publicar un nuevo
+#   release.
+RELEASE_TAG="v1.0.0"
+RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}"
 FALLBACK_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/build-assets/build"
+
+# VERIFICACION DE INTEGRIDAD (SHA256):
+#   node.js es el unico archivo ejecutable; los demas (.map, .wasm) se comprueban
+#   implicitamente al no fallar la carga. Para verificar node.js:
+#
+#     1. Publicar el SHA256 del release con:  sha256sum build/node.js
+#     2. Completar la linea de abajo con el hash esperado y descomentar:
+#
+#   EXPECTED_SHA256="<SHA256_ESPERADO_DE_node.js>"
+#   curl -fSL -o build/node.js "${RELEASE_URL}/node.js"
+#   echo "${EXPECTED_SHA256}  build/node.js" | sha256sum -c -
+#
+#   Importante: no quitar la verificacion una vez agregado un hash real.
+#   Si el hash no coincide, sha256sum devuelve error y set -e aborta.
 
 echo -e "${YELLOW}[*] Descargando build de OpenCode...${NC}"
 

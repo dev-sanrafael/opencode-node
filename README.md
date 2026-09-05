@@ -60,6 +60,25 @@ export OPENCODE_SERVER_PASSWORD="tu-password-seguro"
 export OPENAI_API_KEY="sk-..."
 ```
 
+## Seguridad
+
+- **Password obligatorio fuera de loopback**: el servidor **se niega a arrancar** sin `OPENCODE_SERVER_PASSWORD` (o `--password`) cuando el hostname no es loopback (`127.0.0.1`/`localhost`/`::1`). Solo se permite arrancar sin password en loopback, y en ese caso se muestra una advertencia.
+- **No expongas `0.0.0.0` sin autenticación**: exponer el servidor en LAN o internet sin password permite que cualquiera use tu API key a tu cargo. Para exponerlo en `0.0.0.0`/LAN es **obligatorio** definir un password fuerte:
+  ```bash
+  export OPENCODE_SERVER_PASSWORD="una-password-larga-y-aleatoria"
+  node opencode-server.js --hostname 0.0.0.0
+  ```
+- **API keys fuera del repo**: guarda tus API keys en `~/.opencode.env` (no en `~/.bashrc`, no en el repo) y dale permisos restrictivos:
+  ```bash
+  touch ~/.opencode.env
+  chmod 600 ~/.opencode.env
+  echo 'export ANTHROPIC_API_KEY="sk-ant-..."' >> ~/.opencode.env
+  echo 'export OPENCODE_SERVER_PASSWORD="tu-password"' >> ~/.opencode.env
+  # El cliente/servidor cargan ~/.opencode.env automáticamente.
+  ```
+  > El archivo `~/.opencode.env` está en `.gitignore`; nunca lo comitees.
+- **HTTP plano en LAN**: la API opera por HTTP plano en LAN. Cualquiera en tu red que pueda alcanzar el puerto podrá leer las solicitudes/respuestas (incluidos prompts y respuestas de la IA). Preferí usarlo solo en loopback, o canalizá el acceso por SSH tunneling/TLS si es imprescindible exponerlo.
+
 ## Uso
 
 ```bash

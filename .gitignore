@@ -1,3 +1,6 @@
 node_modules/
 .history/
 *.log
+.opencode.env
+.opencode-termux.env
+build/

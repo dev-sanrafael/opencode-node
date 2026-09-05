@@ -22,6 +22,34 @@ echo "OpenCode Termux"
 echo "=============="
 echo ""
 
+# ----- Guarda FAIL-CLOSED de autenticacion -----
+# Si el servidor se va a exponer en red (sin loopback) y no hay password,
+# se abororta con un error claro en lugar de arrancar sin autenticacion.
+HOSTNAME_ARG="127.0.0.1"
+prev=""
+for a in "$@"; do
+    if [ "$prev" = "--hostname" ]; then
+        HOSTNAME_ARG="$a"
+        break
+    fi
+    prev="$a"
+done
+
+case "$HOSTNAME_ARG" in
+    127.0.0.1|localhost|::1)
+        # loopback: se permite sin password
+        ;;
+    *)
+        if [ -z "$OPENCODE_SERVER_PASSWORD" ]; then
+            echo "❌ ERROR: se va a exponer el servidor en $HOSTNAME_ARG sin password."
+            echo "   Define OPENCODE_SERVER_PASSWORD antes de exponerlo en red:"
+            echo "     export OPENCODE_SERVER_PASSWORD=tu-password-seguro"
+            echo "   O inicia solo en loopback (127.0.0.1)."
+            exit 1
+        fi
+        ;;
+esac
+
 # Verificar si hay API keys configuradas
 if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
     echo "⚠  No se detectaron API keys."
